@@ -1,3 +1,7 @@
+### Reworked for GOLANG ADC Input
+
+Original readme follows.
+
 ### GPIO Library for BeagleBone
 
 #### high performance I/O 
