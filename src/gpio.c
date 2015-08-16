@@ -24,14 +24,16 @@ int init() {
 		int fd;
 		fd = open("/dev/mem", O_RDWR);
 		if(fd == -1) {
-			perror("Unable to open /dev/mem");
-			exit(EXIT_FAILURE);
+			//perror("Unable to open /dev/mem");
+			//exit(EXIT_FAILURE);
+			return FALSE;
 		}
 		map = (uint32_t*)mmap(NULL, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, MMAP_OFFSET);
 		if(map == MAP_FAILED) {
 			close(fd);
-			perror("Unable to map /dev/mem");
-			exit(EXIT_FAILURE);
+			//perror("Unable to map /dev/mem");
+			//exit(EXIT_FAILURE);
+			return FALSE;
 		}
 		mapped = TRUE;
 	}
@@ -103,7 +105,10 @@ int digitalRead(PIN p) {
  * Initializee the Analog-Digital Converter
  */
 int adc_init() {
-	init();
+	char rc = init();
+	if (rc != TRUE) {
+		return FALSE;
+	}
 
 	// enable the CM_WKUP_ADC_TSC_CLKCTRL with CM_WKUP_MODUELEMODE_ENABLE
 	map[(CM_WKUP_ADC_TSC_CLKCTRL-MMAP_OFFSET)/4] |= CM_WKUP_MODULEMODE_ENABLE;
@@ -137,6 +142,7 @@ int adc_init() {
 
 	// enable the ADC
 	map[(ADC_CTRL-MMAP_OFFSET)/4] |= 0x01;
+	return TRUE;
 }
 
 /**
@@ -146,11 +152,18 @@ int adc_init() {
  * @returns the analog value of pin p
  */
 int analogRead(PIN p) {
-	init();
+	char rc = init();
+	if (rc != TRUE) {
+		return -1;
+	}
 	
 	// the clock module is not enabled
-	if(map[(CM_WKUP_ADC_TSC_CLKCTRL-MMAP_OFFSET)/4] & CM_WKUP_IDLEST_DISABLED)
-		adc_init();
+	if(map[(CM_WKUP_ADC_TSC_CLKCTRL-MMAP_OFFSET)/4] & CM_WKUP_IDLEST_DISABLED) {
+		rc = adc_init();
+		if (rc != TRUE) {
+			return -1;
+		}
+	}
 	
 	// enable the step sequencer for this pin
 	map[(ADC_STEPENABLE-MMAP_OFFSET)/4] |= (0x01<<(p.bank_id+1));
@@ -159,7 +172,15 @@ int analogRead(PIN p) {
 	return map[(ADC_FIFO0DATA-MMAP_OFFSET)/4] & ADC_FIFO_MASK;
 }
 
+static PIN analogPins[] = {P9_39, P9_40, P9_37, P9_38, P9_33, P9_36, P9_35};
 
+PIN lookupAnalogPin(int bank) {
+	return analogPins[bank];
+}
+
+int analogReadBank(int bank) {
+	return analogRead(lookupAnalogPin(bank));
+}
 
 
 
